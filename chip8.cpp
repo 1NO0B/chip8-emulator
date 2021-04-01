@@ -2,7 +2,8 @@
 DISCLAIMER: For sources and informations I used: http://devernay.free.fr/hacks/chip8/C8TECH10.HTM, https://austinmorlan.com/posts/chip8_emulator/#the-instructions
 
 
-I copied only few snippets of the code and wrote most of it myself
+I copied only few snippets of the code and wrote most of it myself.
+Comments are often copied from the explanations on the websites.
 
 
 
@@ -75,7 +76,121 @@ public:
     
 
 
+//
+//
+    //Chip8 OPCODES
+//
+//
+void op_00E0(){ //CLS - clears display
+
+}
+void op_00EE(){ //RET - return from a subroutine
+
+}
+void op_0nnn(){ //JP addr - jump to location nnn 
+
+}
+void op_1nnn(){ //Call addr - call subroutine at nnn
+
+}
+void op_2nnn(){ //SE Vx, byte - Skips next instruction if Vx == kk
+
+}
+void op_3xkk(){ //SNE Vx, byte - Skips next instruction if Vx != kk
+
+}
+void op_4xkk(){ //Skip next instruction if Vx != kk
+
+}
+void op_5xy0(){ // Skip next instruction if Vx == Vy.
+
+}
+void op_6xkk(){ // Set Vx = kk.
+
+}
+void op_7xkk(){ // Set Vx = Vx + kk.
+
+}
+void op_8xy0(){ // Set Vx = Vy.
+
+}
+void op_8xy1(){ // Set Vx = Vx OR Vy
+
+}
+void op_8xy2(){ // Set Vx = Vx AND Vy
+
+}
+void op_8xy3(){ // Set Vx = Vx XOR Vy
+
+}
+void op_8xy4(){ // Set Vx = Vx + Vy, set VF = carry
+
+}
+void op_8xy5(){ // Set Vx = Vx - Vy, set VF = NOT borrow
+
+}
+void op_8xy6(){ // Set Vx = Vx SHR 1
+
+}
+void op_8xy7(){ //Set Vx = Vy - Vx, set VF = NOT borrow
+
+}
+void op_8xyE(){ // Set Vx = Vx SHL 1
+
+}
+void op_9xy0(){ // Skip next instruction if Vx != Vy
+
+}
+void op_Annn(){ // Set I = nnn
+
+}
+void op_Bnnn(){  //Jump to location nnn + V0
+
+}
+void op_Cxkk(){ // Set Vx = random byte AND kk
+
+}
+void op_Dxyn(){ // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
+
+}
+void op_Ex9e(){ // Skip next instruction if key with the value of Vx is pressed
+
+}
+void op_ExA1(){ // Skip next instruction if key with the value of Vx is not pressed
+
+}
+void op_Fx07(){ // Set Vx = delay timer value
+
+}
+void op_Fx0A(){ // Wait for a key press, store the value of the key in Vx
+
+}
+void op_Fx15(){ // Set delay timer = Vx
+
+}
+void op_Fx18(){  //Set sound timer = Vx
+
+}
+void op_Fx1E(){ // Set I = I + Vx
+
+}
+void op_Fx29(){ // Set I = location of sprite for digit Vx
+
+}
+void op_Fx33(){ // Store BCD representation of Vx in memory locations I, I+1, and I+2
+
+}
+void op_Fx55(){ // Store registers V0 through Vx in memory starting at location I
+
+}
+void op_Fx65(){ // Read registers V0 through Vx from memory starting at location I
+
+}
+
+
 };
+
+
 
 
 
@@ -83,7 +198,7 @@ int main() {
     Chip8 chip8;
     
     chip8.start(); //called at the "boot" of the chip
-
+   
     
     
     return 0;
