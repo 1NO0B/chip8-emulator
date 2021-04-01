@@ -61,13 +61,18 @@ public:
         load_fontset(); //loads fontset into memory
     }
 
-    void load_rom(string filename) {
+    void load_rom(string filename) {//loads instructions of the rom into the memory
 
     }
 
-    void load_memory(unsigned int address, uint8_t content){ //loads instructions of the rom into the memory
+    void set_memory(unsigned int address, uint8_t content){ 
 
     }
+
+    void set_display_memory(unsigned int address, uint8_t content){ 
+        display_memory[address] = content;
+    }
+
     
     void load_fontset() {
 
@@ -81,22 +86,25 @@ public:
     //Chip8 OPCODES
 //
 //
-void op_00E0(){ //CLS - clears display
+/*void op_0nnn(){ //Jump to a machine code routine at nnn
+This instruction is only used on the old computers on which Chip-8 was originally implemented. It is ignored by modern interpreters.
+}*/
+void op_00E0(){ //CLS - clears display          check
+    for(int i = 0; i<2048; i++){
+        set_display_memory(i, 0);
+    }
+}
+void op_00EE(){ //RET - return from a subroutine            
 
 }
-void op_00EE(){ //RET - return from a subroutine
+
+void op_1nnn(){ //JP addr - jump to location nnn 
 
 }
-void op_0nnn(){ //JP addr - jump to location nnn 
+void op_2nnn(){ //Call addr - call subroutine at nnn
 
 }
-void op_1nnn(){ //Call addr - call subroutine at nnn
-
-}
-void op_2nnn(){ //SE Vx, byte - Skips next instruction if Vx == kk
-
-}
-void op_3xkk(){ //SNE Vx, byte - Skips next instruction if Vx != kk
+void op_3xkk(){ //SE Vx, byte - Skips next instruction if Vx == kk
 
 }
 void op_4xkk(){ //Skip next instruction if Vx != kk
@@ -198,7 +206,7 @@ int main() {
     Chip8 chip8;
     
     chip8.start(); //called at the "boot" of the chip
-   
+    chip8.op_00E0();
     
     
     return 0;
