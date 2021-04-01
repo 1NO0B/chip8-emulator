@@ -108,52 +108,74 @@ void op_2nnn(){ //Call addr - call subroutine at nnn
     pc = opcode & 0x0FFF;
 }
 void op_3xkk(){ //SE Vx, byte - Skips next instruction if Vx == kk
-    if(registers[opcode & 0x0F00)>>8] == (opcode & 0x00FF)){
+    if(registers[(opcode & 0x0F00)>>8] == (opcode & 0x00FF)){
         pc+=2;
     }
 }
 void op_4xkk(){ //Skip next instruction if Vx != kk
-    if(registers[opcode & 0x0F00)>>8] != (opcode & 0x00FF)){
+    if(registers[(opcode & 0x0F00)>>8] != (opcode & 0x00FF)){
         pc+=2;
     }
 }
 void op_5xy0(){ // Skip next instruction if Vx == Vy.
-    if(registers[opcode & 0x0F00)>>8] == registers[opcode & 0x00F0)>>4]){
+    if(registers[(opcode & 0x0F00)>>8] == registers[(opcode & 0x00F0)>>4]){
         pc+=2;
     }
 }
 void op_6xkk(){ // Set Vx = kk.
-    registers[opcode & 0x0F00)>>8] = opcode & 0x00FF;
+    registers[(opcode & 0x0F00)>>8] = opcode & 0x00FF;
 }
 void op_7xkk(){ // Set Vx = Vx + kk.
-    registers[opcode & 0x0F00)>>8] += opcode & 0x00FF;
+    registers[(opcode & 0x0F00)>>8] += opcode & 0x00FF;
 }
 void op_8xy0(){ // Set Vx = Vy.
-    registers[opcode & 0x0F00)>>8]=registers[opcode & 0x00F0)>>4]
+    registers[(opcode & 0x0F00)>>8]=registers[(opcode & 0x00F0)>>4]
 }
 void op_8xy1(){ // Set Vx = Vx OR Vy
-    registers[opcode & 0x0F00)>>8] |= registers[opcode & 0x00F0)>>4]
+    registers[(opcode & 0x0F00)>>8] |= registers[(opcode & 0x00F0)>>4]
 }
 void op_8xy2(){ // Set Vx = Vx AND Vy
-    registers[opcode & 0x0F00)>>8] &= registers[opcode & 0x00F0)>>4]
+    registers[(opcode & 0x0F00)>>8] &= registers[(opcode & 0x00F0)>>4]
 }
 void op_8xy3(){ // Set Vx = Vx XOR Vy
-    registers[opcode & 0x0F00)>>8] ^= registers[opcode & 0x00F0)>>4]
+    registers[(opcode & 0x0F00)>>8] ^= registers[(opcode & 0x00F0)>>4];
 }
 void op_8xy4(){ // Set Vx = Vx + Vy, set VF = carry
+    registers[(opcode & 0x0F00)>>8] += registers[(opcode & 0x00F0)>>4];
 
+    if(registers[(opcode & 0x0F00)>>8] > 255){
+        registers[0xF]=1
+    }
+    else{
+        registers[0xF]=0
+    }
 }
 void op_8xy5(){ // Set Vx = Vx - Vy, set VF = NOT borrow
-
+    if(registers[(opcode & 0x0F00)>>8] > registers[(opcode & 0x00F0)>>4]){
+        registers[0xF]=1
+    }
+    else{
+        registers[0xF]=0
+    }
+    registers[(opcode & 0x0F00)>>8] -= registers[(opcode & 0x00F0)>>4];
+    
 }
 void op_8xy6(){ // Set Vx = Vx SHR 1
-
+    registers[0xF] = registers[(opcode & 0x0F00) >> 8] & 0x1;
+    registers[(opcode & 0x0F00) >> 8] >>= 1;
 }
 void op_8xy7(){ //Set Vx = Vy - Vx, set VF = NOT borrow
-
+    if(registers[(opcode & 0x00F0)>>4] > registers[(opcode & 0x0F00) >> 8]){
+        registers[0xF]=1
+    }
+    else{
+        registers[0xF]=0
+    }
+    registers[(opcode & 0x0F00) >> 8] = registers[(opcode & 0x00F0)>>4] - registers[(opcode & 0x0F00) >> 8]
 }
 void op_8xyE(){ // Set Vx = Vx SHL 1
-
+    registers[0xF] = registers[(opcode & 0x0F00) >> 8] >> 7;
+    registers[(opcode & 0x0F00) >> 8] <<= 1;
 }
 void op_9xy0(){ // Skip next instruction if Vx != Vy
 
