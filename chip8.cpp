@@ -91,45 +91,54 @@ This instruction is only used on the old computers on which Chip-8 was originall
 }*/
 void op_00E0(){ //CLS - clears display          check
     for(int i = 0; i<2048; i++){
-        set_display_memory(i, 0);
+        set_display_memory(i, 0); //sets all values of display_memory[] to 0
     }
 }
 void op_00EE(){ //RET - return from a subroutine            
-
+    sp--;
+    pc = stack[sp];
 }
 
 void op_1nnn(){ //JP addr - jump to location nnn 
-
+    pc= opcode & 0x0FFF;
 }
 void op_2nnn(){ //Call addr - call subroutine at nnn
-
+    stack[sp] = pc; 
+    sp++;
+    pc = opcode & 0x0FFF;
 }
 void op_3xkk(){ //SE Vx, byte - Skips next instruction if Vx == kk
-
+    if(registers[opcode & 0x0F00)>>8] == (opcode & 0x00FF)){
+        pc+=2;
+    }
 }
 void op_4xkk(){ //Skip next instruction if Vx != kk
-
+    if(registers[opcode & 0x0F00)>>8] != (opcode & 0x00FF)){
+        pc+=2;
+    }
 }
 void op_5xy0(){ // Skip next instruction if Vx == Vy.
-
+    if(registers[opcode & 0x0F00)>>8] == registers[opcode & 0x00F0)>>4]){
+        pc+=2;
+    }
 }
 void op_6xkk(){ // Set Vx = kk.
-
+    registers[opcode & 0x0F00)>>8] = opcode & 0x00FF;
 }
 void op_7xkk(){ // Set Vx = Vx + kk.
-
+    registers[opcode & 0x0F00)>>8] += opcode & 0x00FF;
 }
 void op_8xy0(){ // Set Vx = Vy.
-
+    registers[opcode & 0x0F00)>>8]=registers[opcode & 0x00F0)>>4]
 }
 void op_8xy1(){ // Set Vx = Vx OR Vy
-
+    registers[opcode & 0x0F00)>>8] |= registers[opcode & 0x00F0)>>4]
 }
 void op_8xy2(){ // Set Vx = Vx AND Vy
-
+    registers[opcode & 0x0F00)>>8] &= registers[opcode & 0x00F0)>>4]
 }
 void op_8xy3(){ // Set Vx = Vx XOR Vy
-
+    registers[opcode & 0x0F00)>>8] ^= registers[opcode & 0x00F0)>>4]
 }
 void op_8xy4(){ // Set Vx = Vx + Vy, set VF = carry
 
