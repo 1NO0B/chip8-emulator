@@ -100,7 +100,7 @@ void op_00EE(){ //RET - return from a subroutine
 }
 
 void op_1nnn(){ //JP addr - jump to location nnn 
-    pc= opcode & 0x0FFF;
+    pc = opcode & 0x0FFF;
 }
 void op_2nnn(){ //Call addr - call subroutine at nnn
     stack[sp] = pc; 
@@ -178,16 +178,18 @@ void op_8xyE(){ // Set Vx = Vx SHL 1
     registers[(opcode & 0x0F00) >> 8] <<= 1;
 }
 void op_9xy0(){ // Skip next instruction if Vx != Vy
-
+    if(registers[(opcode & 0x0F00)>>8] != registers[(opcode & 0x00F0)>>4]){
+        pc+=2;
+    }
 }
 void op_Annn(){ // Set I = nnn
-
+    index_register = opcode & 0x0FFF;
 }
 void op_Bnnn(){  //Jump to location nnn + V0
-
+    pc = (opcode & 0x0FFF) + registers[0];
 }
 void op_Cxkk(){ // Set Vx = random byte AND kk
-
+    registers[(opcode & 0x0F00)>>8] = rand() % 255 & (opcode & 0x00FF);
 }
 void op_Dxyn(){ // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
 
@@ -199,31 +201,35 @@ void op_ExA1(){ // Skip next instruction if key with the value of Vx is not pres
 
 }
 void op_Fx07(){ // Set Vx = delay timer value
-
+    registers[(opcode & 0x0F00)>>8] = delay_timer;
 }
 void op_Fx0A(){ // Wait for a key press, store the value of the key in Vx
 
 }
 void op_Fx15(){ // Set delay timer = Vx
-
+    delay_timer = registers[(opcode & 0x0F00)>>8];
 }
 void op_Fx18(){  //Set sound timer = Vx
-
+    sound_timer = registers[(opcode & 0x0F00)>>8];
 }
 void op_Fx1E(){ // Set I = I + Vx
-
+    index_register += registers[(opcode & 0x0F00)>>8];
 }
 void op_Fx29(){ // Set I = location of sprite for digit Vx
-
+    
 }
 void op_Fx33(){ // Store BCD representation of Vx in memory locations I, I+1, and I+2
 
 }
 void op_Fx55(){ // Store registers V0 through Vx in memory starting at location I
-
+    for(int i = 0; i <= registers[(opcode & 0x0F00)>>8]; i++){
+        memory[index_register+i] = registers[i];
+    }
 }
 void op_Fx65(){ // Read registers V0 through Vx from memory starting at location I
-
+    for(int i = 0; i <= registers[(opcode & 0x0F00)>>8]; i++){
+         registers[i] = memory[index_register+i]
+    }
 }
 
 
