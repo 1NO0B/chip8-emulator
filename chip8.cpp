@@ -14,8 +14,8 @@ License: "MIT License"
 #include<iostream>
 #include<cstdint>
 #include<fstream>
-#include <chrono>
-#include <SDL2/SDL.h>
+#include<chrono>
+#include<SDL2/SDL.h>
 
 
 using namespace std;
@@ -44,7 +44,7 @@ public:
     uint8_t delay_timer; // for timing -> if it's > 0 it'll decrement at a rate of 60Hz
     uint8_t sound_timer; // timer for sound, if it's not zero a single tone will play, it works the same as the delay timer
     uint8_t keys[16]; //keypad (4*4)
-    uint32_t display_memory[2048]; //display, 0xFFFFFFFF=on, 0x00000000=off
+    uint32_t display_memory[2048]{}; //display, 0xFFFFFFFF=on, 0x00000000=off
     uint16_t opcode;
 
 
@@ -68,29 +68,50 @@ public:
                             };
 
     
-    void start(){ //called at the "boot" of the chip
-        pc = start_address; //resets the pc to the right address
-        load_rom();
-        load_fontset(); //loads fontset into memory
-    }
+    
 
     void load_rom() {//loads instructions of the rom into the memory
-        std::ifstream file(filename, std::ios::binary | std::ios::ate);
+        FILE* rom = fopen(filename, "rb");
+    if (rom == NULL) {
+        std::cerr << "Failed to open ROM" << std::endl;
+        return;
+    }
 
-	    if (file.is_open()){
-		    std::streampos size = file.tellg();
-		    char* buffer = new char[size];
+    // Get file size
+    fseek(rom, 0, SEEK_END);
+    long rom_size = ftell(rom);
+    rewind(rom);
 
-		    file.seekg(0, std::ios::beg);
-		    file.read(buffer, size);
-	    	file.close();
+    // Allocate memory to store rom
+    char* rom_buffer = (char*) malloc(sizeof(char) * rom_size);
+    if (rom_buffer == NULL) {
+        std::cerr << "Failed to allocate memory for ROM" << std::endl;
+        return;
+    }
 
-	    	for (long i = 0; i < size; ++i){
-		    	memory[start_address + i] = buffer[i];
-	    	}
-            
-	    	delete[] buffer;
-	    }
+    // Copy ROM into buffer
+    size_t result = fread(rom_buffer, sizeof(char), (size_t)rom_size, rom);
+    if (result != rom_size) {
+        std::cerr << "Failed to read ROM" << std::endl;
+        return;
+    }
+
+    // Copy buffer to memory
+    if ((4096-512) > rom_size){
+        for (int i = 0; i < rom_size; ++i) {
+            memory[i + 512] = (uint8_t)rom_buffer[i];   // Load into memory starting
+                                                        // at 0x200 (=512)
+        }
+    }
+    else {
+        std::cerr << "ROM too large to fit in memory" << std::endl;
+        return;
+    }
+
+    // Clean up
+    fclose(rom);
+    free(rom_buffer);
+
     }
 
 
@@ -101,7 +122,14 @@ public:
         }
     }
 
-    
+    void start(){ //called at the "boot" of the chip
+
+        
+        pc = start_address; //resets the pc to the right address
+        load_rom();
+        load_fontset(); //loads fontset into memory
+        op_00E0();
+    }
 
 
 //
@@ -215,23 +243,28 @@ void op_Cxkk(){ // Set Vx = random byte AND kk
     registers[(opcode & 0x0F00)>>8] = rand() % 255 & (opcode & 0x00FF);
 }
 void op_Dxyn(){ // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
-    uint8_t x = registers[(opcode & 0x0F00)>>8];
-    uint8_t y = registers[(opcode & 0x00F0)>>4];
-    uint8_t height = opcode & 0x000F;
-    uint8_t pixel;
+    unsigned short x = registers[(opcode & 0x0F00) >> 8];
+            unsigned short y = registers[(opcode & 0x00F0) >> 4];
+            unsigned short height = opcode & 0x000F;
+            unsigned short pixel;
 
-    registers[0xF] = 0;
-
-    for(int row=0; row<height; row++){
-        pixel = memory[index_register + row];
-        for(int column = 0; column < 8; column++)
-            if((pixel & (0x80 >> column)) != 0){
-                if(display_memory[(x + column + ((y + row) * 64))] == 1){
-                    registers[0xF] = 1;
+            registers[0xF] = 0;
+            for (int yline = 0; yline < height; yline++)
+            {
+                pixel = memory[index_register + yline];
+                for(int xline = 0; xline < 8; xline++)
+                {
+                    if((pixel & (0x80 >> xline)) != 0)
+                    {
+                        if(display_memory[(x + xline + ((y + yline) * 64))] == 1)
+                        {
+                            registers[0xF] = 1;
+                        }
+                        display_memory[x + xline + ((y + yline) * 64)] ^= 1;
+                    }
                 }
-                display_memory[x + column + ((y + row) * 64)] ^= 1;
-        }
-    }
+            }
+    
 }
 
 void op_Ex9e(){ // Skip next instruction if key with the value of Vx is pressed
@@ -255,7 +288,7 @@ void op_Fx0A(){ // Wait for a key press, store the value of the key in Vx
             keypressed = true;
         }
     }
-    if(keypressed=false){
+    if(keypressed==false){
         pc -= 2;
     }
 }
@@ -292,87 +325,125 @@ void op_Fx65(){ // Read registers V0 through Vx from memory starting at location
 }
 
 void opcode_switch(){ //switch with all the opcodes
-    switch(opcode & 0x000F){
+    switch(opcode & 0xF000){
         case 0x0000:
             switch (opcode & 0x000F) {
                 case 0x0000:
                     op_00E0();
+                    break;
                 case 0x000E:
                     op_00EE();
+                    break;
             }
+            break;
         case 0x1000:
             op_1nnn();
+            break;
         case 0x2000:
             op_2nnn();
+            break;
         case 0x3000:
             op_3xkk();
+            break;
         case 0x4000:
             op_4xkk();
+            break;
         case 0x5000:
             op_5xy0();
+            break;
         case 0x6000:
             op_6xkk();
+            break;
         case 0x7000:
             op_7xkk();
+            break;
         case 0x8000:
             switch (opcode & 0x000F) {
                 case 0x0000:
                     op_8xy0();
+                    break;
                 case 0x0001:
                     op_8xy1();
+                    break;
                 case 0x0002:
                     op_8xy2();
+                    break;
                 case 0x0003:
                     op_8xy3();
+                    break;
                 case 0x0004:
                     op_8xy4();
+                    break;
                 case 0x0005:
                     op_8xy5();
+                    break;
                 case 0x0006:
                     op_8xy6();
+                    break;
                 case 0x0007:
                     op_8xy7();
+                    break;
                 case 0x000E:
                     op_8xyE();
+                    break;
             }
+            break;
         case 0x9000:
             op_9xy0();
+            break;
         case 0xA000:
             op_Annn();
+            break;
         case 0xB000:
             op_Bnnn();
+            break;
         case 0xC000:
             op_Cxkk();
+            break;
         case 0xD000:
             op_Dxyn();
+            break;
         case 0xE000:
             switch (opcode & 0x00FF) {
                 case 0x009E:
                     op_Ex9e();
+                    break;
                 case 0x00A1:
                     op_ExA1();
+                    break;
             }
+            break;
         case 0xF000:
             switch (opcode & 0x00FF){
                 case 0x0007:
                     op_Fx07();
+                    break;
                 case 0x000A:
                     op_Fx0A();
+                    break;
                 case 0x0015:
                     op_Fx15();
+                    break;
                 case 0x0018:
                     op_Fx18();
+                    break;
                 case 0x001E:
                     op_Fx1E();
+                    break;
                 case 0x0029:
                     op_Fx29();
+                    break;
                 case 0x0033:
                     op_Fx33();
+                    break;
                 case 0x0055:
                     op_Fx55();
+                    break;
                 case 0x0065:
                     op_Fx65();
+                    break;
             }
+            break;
     }
 }
 
@@ -397,276 +468,289 @@ void cycle(){ //execudes one cycle of the cpu
     if(sound_timer>0){
         sound_timer--;
     }
-
 }
 
 };
 
 
-class Setup{ //the class which represents your setup -> your monitor, your keypad etc.
+class SDL_Window;
+class SDL_Renderer;
+class SDL_Texture;
 
+
+class Platform
+{
 public:
-    SDL_Window* window{};
+	Platform(char const* title, int windowWidth, int windowHeight, int textureWidth, int textureHeight);
+	~Platform();
+	void Update(void const* buffer, int pitch);
+	bool ProcessInput(uint8_t* keys);
+
+private:
+	SDL_Window* window{};
 	SDL_Renderer* renderer{};
 	SDL_Texture* texture{};
-
-    Setup(char const* title, int window_width, int window_height, int texture_width, int texture_height){ //builds the window
-
-        SDL_Init(SDL_INIT_VIDEO);
-        window = SDL_CreateWindow(title, 0, 0, window_width, window_height, SDL_WINDOW_SHOWN);
-
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-
-        texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, texture_width, texture_height);
-    }
-
-    ~Setup(){ //closes the window
-        SDL_DestroyTexture(texture);
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-    }
-
-
-    void update(void const* buffer, int pitch){
-        SDL_UpdateTexture(texture, nullptr, buffer, pitch);
-		SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-		SDL_RenderPresent(renderer);
-    }
-
-
-    bool process_input(uint8_t* keys){
-        bool quit = false;
-
-		SDL_Event event;
-
-		while (SDL_PollEvent(&event))
-		{
-			switch (event.type){
-				case SDL_QUIT:
-				{
-					quit = true;
-				} break;
-
-				case SDL_KEYDOWN:
-				{
-					switch (event.key.keysym.sym)
-					{
-						case SDLK_ESCAPE:
-						{
-							quit = true;
-						} break;
-
-						case SDLK_x:
-						{
-							keys[0] = 1;
-						} break;
-
-						case SDLK_1:
-						{
-							keys[1] = 1;
-						} break;
-
-						case SDLK_2:
-						{
-							keys[2] = 1;
-						} break;
-
-						case SDLK_3:
-						{
-							keys[3] = 1;
-						} break;
-
-						case SDLK_q:
-						{
-							keys[4] = 1;
-						} break;
-
-						case SDLK_w:
-						{
-							keys[5] = 1;
-						} break;
-
-						case SDLK_e:
-						{
-							keys[6] = 1;
-						} break;
-
-						case SDLK_a:
-						{
-							keys[7] = 1;
-						} break;
-
-						case SDLK_s:
-						{
-							keys[8] = 1;
-						} break;
-
-						case SDLK_d:
-						{
-							keys[9] = 1;
-						} break;
-
-						case SDLK_z:
-						{
-							keys[0xA] = 1;
-						} break;
-
-						case SDLK_c:
-						{
-							keys[0xB] = 1;
-						} break;
-
-						case SDLK_4:
-						{
-							keys[0xC] = 1;
-						} break;
-
-						case SDLK_r:
-						{
-							keys[0xD] = 1;
-						} break;
-
-						case SDLK_f:
-						{
-							keys[0xE] = 1;
-						} break;
-
-						case SDLK_v:
-						{
-							keys[0xF] = 1;
-						} break;
-					}
-				} break;
-
-				case SDL_KEYUP:
-				{
-					switch (event.key.keysym.sym)
-					{
-						case SDLK_x:
-						{
-							keys[0] = 0;
-						} break;
-
-						case SDLK_1:
-						{
-							keys[1] = 0;
-						} break;
-
-						case SDLK_2:
-						{
-							keys[2] = 0;
-						} break;
-
-						case SDLK_3:
-						{
-							keys[3] = 0;
-						} break;
-
-						case SDLK_q:
-						{
-							keys[4] = 0;
-						} break;
-
-						case SDLK_w:
-						{
-							keys[5] = 0;
-						} break;
-
-						case SDLK_e:
-						{
-							keys[6] = 0;
-						} break;
-
-						case SDLK_a:
-						{
-							keys[7] = 0;
-						} break;
-
-						case SDLK_s:
-						{
-							keys[8] = 0;
-						} break;
-
-						case SDLK_d:
-						{
-							keys[9] = 0;
-						} break;
-
-						case SDLK_z:
-						{
-							keys[0xA] = 0;
-						} break;
-
-						case SDLK_c:
-						{
-							keys[0xB] = 0;
-						} break;
-
-						case SDLK_4:
-						{
-							keys[0xC] = 0;
-						} break;
-
-						case SDLK_r:
-						{
-							keys[0xD] = 0;
-						} break;
-
-						case SDLK_f:
-						{
-							keys[0xE] = 0;
-						} break;
-
-						case SDLK_v:
-						{
-							keys[0xF] = 0;
-						} break;
-					}
-				} break;
-            }
-
-        }
-        return quit;
-    }
 };
+Platform::Platform(char const* title, int windowWidth, int windowHeight, int textureWidth, int textureHeight)
+{
+	SDL_Init(SDL_INIT_VIDEO);
+
+	window = SDL_CreateWindow(title, 0, 0, windowWidth, windowHeight, SDL_WINDOW_SHOWN);
+
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+	texture = SDL_CreateTexture(
+		renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, textureWidth, textureHeight);
+}
+
+Platform::~Platform()
+{
+	SDL_DestroyTexture(texture);
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+	SDL_Quit();
+}
+
+void Platform::Update(void const* buffer, int pitch)
+{
+	SDL_UpdateTexture(texture, nullptr, buffer, pitch);
+	SDL_RenderClear(renderer);
+	SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+	SDL_RenderPresent(renderer);
+}
+
+bool Platform::ProcessInput(uint8_t* keys)
+{
+	bool quit = false;
+
+	SDL_Event event;
+
+	while (SDL_PollEvent(&event))
+	{
+		switch (event.type)
+		{
+			case SDL_QUIT:
+			{
+				quit = true;
+			} break;
+
+			case SDL_KEYDOWN:
+			{
+				switch (event.key.keysym.sym)
+				{
+					case SDLK_ESCAPE:
+					{
+						quit = true;
+					} break;
+
+					case SDLK_x:
+					{
+						keys[0] = 1;
+					} break;
+
+					case SDLK_1:
+					{
+						keys[1] = 1;
+					} break;
+
+					case SDLK_2:
+					{
+						keys[2] = 1;
+					} break;
+
+					case SDLK_3:
+					{
+						keys[3] = 1;
+					} break;
+
+					case SDLK_q:
+					{
+						keys[4] = 1;
+					} break;
+
+					case SDLK_w:
+					{
+						keys[5] = 1;
+					} break;
+
+					case SDLK_e:
+					{
+						keys[6] = 1;
+					} break;
+
+					case SDLK_a:
+					{
+						keys[7] = 1;
+					} break;
+
+					case SDLK_s:
+					{
+						keys[8] = 1;
+					} break;
+
+					case SDLK_d:
+					{
+						keys[9] = 1;
+					} break;
+
+					case SDLK_z:
+					{
+						keys[0xA] = 1;
+					} break;
+
+					case SDLK_c:
+					{
+						keys[0xB] = 1;
+					} break;
+
+					case SDLK_4:
+					{
+						keys[0xC] = 1;
+					} break;
+
+					case SDLK_r:
+					{
+						keys[0xD] = 1;
+					} break;
+
+					case SDLK_f:
+					{
+						keys[0xE] = 1;
+					} break;
+
+					case SDLK_v:
+					{
+						keys[0xF] = 1;
+					} break;
+				}
+			} break;
+
+			case SDL_KEYUP:
+			{
+				switch (event.key.keysym.sym)
+				{
+					case SDLK_x:
+					{
+						keys[0] = 0;
+					} break;
+
+					case SDLK_1:
+					{
+						keys[1] = 0;
+					} break;
+
+					case SDLK_2:
+					{
+						keys[2] = 0;
+					} break;
+
+					case SDLK_3:
+					{
+						keys[3] = 0;
+					} break;
+
+					case SDLK_q:
+					{
+						keys[4] = 0;
+					} break;
+
+					case SDLK_w:
+					{
+						keys[5] = 0;
+					} break;
+
+					case SDLK_e:
+					{
+						keys[6] = 0;
+					} break;
+
+					case SDLK_a:
+					{
+						keys[7] = 0;
+					} break;
+
+					case SDLK_s:
+					{
+						keys[8] = 0;
+					} break;
+
+					case SDLK_d:
+					{
+						keys[9] = 0;
+					} break;
+
+					case SDLK_z:
+					{
+						keys[0xA] = 0;
+					} break;
+
+					case SDLK_c:
+					{
+						keys[0xB] = 0;
+					} break;
+
+					case SDLK_4:
+					{
+						keys[0xC] = 0;
+					} break;
+
+					case SDLK_r:
+					{
+						keys[0xD] = 0;
+					} break;
+
+					case SDLK_f:
+					{
+						keys[0xE] = 0;
+					} break;
+
+					case SDLK_v:
+					{
+						keys[0xF] = 0;
+					} break;
+				}
+			} break;
+		}
+	}
+
+	return quit;
+}
 
 
-int main() { 
-    
-	int cycleDelay = 1200;
-	Setup setup("CHIP-8 Emulator", VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_WIDTH, VIDEO_HEIGHT);
+int main(int argc, char** argv)
+{
+	
+
+	int videoScale = 20;
+	int cycleDelay = 1;
+	filename = "PONG";
+
+	Platform platform("CHIP-8 Emulator", VIDEO_WIDTH * videoScale, VIDEO_HEIGHT * videoScale, VIDEO_WIDTH, VIDEO_HEIGHT);
+
 	Chip8 chip8;
 	chip8.start();
-    
+
 	int videoPitch = sizeof(chip8.display_memory[0]) * VIDEO_WIDTH;
-    
-	auto lastCycleTime = std::chrono::high_resolution_clock::now();
+
+	//auto lastCycleTime = chrono::high_resolution_clock::now();
 	bool quit = false;
 
 	while (!quit)
 	{
-		quit = setup.process_input(chip8.keys);
+		quit = platform.ProcessInput(chip8.keys);
 
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float dt = std::chrono::duration<float, std::chrono::milliseconds::period>(currentTime - lastCycleTime).count();
+		//auto currentTime = chrono::high_resolution_clock::now();
+		//float dt = chrono::duration<float, std::chrono::milliseconds::period>(currentTime - lastCycleTime).count();
 
-		if (dt > cycleDelay)
+		if (true)
 		{
-			lastCycleTime = currentTime;
+			//lastCycleTime = currentTime;
 
 			chip8.cycle();
-        
-			setup.update(chip8.display_memory, videoPitch);
+
+			platform.Update(chip8.display_memory, videoPitch);
 		}
-        
 	}
 
 	return 0;
 }
-
-
-
-
-
