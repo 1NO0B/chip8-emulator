@@ -15,5 +15,5 @@ This gh repository does have a lot of roms: https://github.com/JamesGriffin/CHIP
 
 
 # !DISCLAMER!
-Frontend (so everything with sdl2) is copied by this repo https://github.com/JamesGriffin/CHIP-8-Emulator/
+Frontend (so everything with sdl2) is copied by this repo https://github.com/JamesGriffin/CHIP-8-Emulator/ <br>
 The rest is written by me
