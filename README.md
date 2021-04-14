@@ -12,3 +12,8 @@ e.g "./chip8 PONG"
 # ROMS
 This gh repository does have a lot of roms: https://github.com/JamesGriffin/CHIP-8-Emulator/tree/master/roms
 
+
+
+# !DISCLAMER!
+Frontend (so everything with sdl2) is copied by this repo https://github.com/JamesGriffin/CHIP-8-Emulator/
+The rest is written by me
